@@ -24,6 +24,37 @@ class Deck:
     def deal(self, num_cards):
         return [self.cards.pop() for _ in range(num_cards)]
     
+    def burn(self):
+        burn_card = [self.cards.pop() for _ in range(1)]
+        return burn_card
+    
+    def reveal_flop(self):
+        flop_cards = [self.cards.pop() for _ in range(3)]
+        flop_str = ', '.join(str(card) for card in flop_cards)
+        print(f"-------------------------------------- [Flop] --------------------------------------")
+        print(f"The flop is: {flop_str}")
+        return flop_cards
+    
+    def reveal_turn_river(self, type, flop_cards):
+        flop_str = ', '.join(str(card) for card in flop_cards)
+        turn_str = ""  # Initialize turn_str here
+
+        if type == "Turn":
+            turn_card = [self.cards.pop() for _ in range(1)]
+            turn_str = ', '.join(str(card) for card in turn_card)
+            print(f"-------------------------------------- [{type}] --------------------------------------")
+            print(f"The {type} is: {turn_str}")
+            print(f"Community Cards: {flop_str}, {turn_str}")
+            return turn_card + flop_cards  # Return the updated list of community cards
+
+        elif type == "River":
+            river_card = [self.cards.pop() for _ in range(1)]
+            river_str = ', '.join(str(card) for card in river_card)
+            print(f"-------------------------------------- [{type}] --------------------------------------")
+            print(f"The {type} is: {river_str}")
+            print(f"Community Cards: {flop_str}, {turn_str}, {river_str}")
+            return river_card + flop_cards + [turn_str]  # Return the updated list of community cards
+    
 class Player:
     def __init__(self, id, is_user = False):
         self.id = id
@@ -36,27 +67,17 @@ class Player:
     def bust_out(self):
         self.status = "eliminated"
 
+    def all_in(self):
+        self.status = "all-in"
+
     def deal_hand(self, hand):
         self.hand = hand
     
     def show_hand(self):
         return f"{self.hand}"
 
-class Chance: # temporary randomizer to simulate the random decisions of players (this will later be replaced by AI-driven decision making)
-    @staticmethod
-    def get_random_value():
-        chance = random.uniform(0, 1)
-        if chance <= 0.10:  # 10% chance
-            return "fold"
-        elif chance <= 0.50:  # additional 40% chance
-            return "check"
-        elif chance <= 0.75:  # additional 25% chance
-            return "call"
-        else:
-            return "raise"
 
-
-class User_Decision:
+class Player_Decision:
     def __init__(self, game):
         self.game = game
         self.players = game.players
@@ -64,16 +85,45 @@ class User_Decision:
         self.user_index = game.user_index
         self.user_options = []
     
-    def ask_user(self):
-        player = self.players[self.user_index]
-        if player.current_bet == self.game.min_bet: # add option to check if user's current bet matches the minimum bet
-            self.user_options.append("check")
-        if player.current_bet <= self.game.min_bet: # add options to call raise and fold if user's current bet is lower than the minimum bet
-            self.user_options.append("call")
-            self.user_options.append("raise")
-            self.user_options.append("fold")
-        user_decision = input(f"It's on you, here are your options: \n {self.user_options} \n")
-        print(f"You chose: {user_decision}")
+    def ask_player(self, player):
+        current_player = player 
+        if current_player.is_user:
+            # Print the current situation for the user
+            print(f"Your current bet: {current_player.current_bet}")
+            print(f"Minimum bet to stay in the game: {self.game.min_bet}")
+            print(f"Your stack: {current_player.stack}")
+            print(f"Pot total: {self.game.pot_total}")
+
+            # Determine the options available to the user
+            self.user_options = ['fold']
+            if current_player.current_bet < self.game.min_bet:
+                self.user_options += ['call', 'raise']
+            if current_player.current_bet == self.game.min_bet:
+                self.user_options.append('check')
+            
+            # Get user decision
+            user_decision = input(f"It's your turn. Here are your options: {self.user_options}\n")
+            print(f"You chose: {user_decision}")
+            return user_decision
+
+        else:
+            # Decision logic for non-user players
+            chance = random.uniform(0, 1)
+            if current_player.current_bet < self.game.min_bet:
+                if chance <= 0.10:
+                    return "fold"
+                elif chance <= 0.60:  # Adjusted probability for 'call'
+                    return "call"
+                else:
+                    return "raise"
+            elif current_player.current_bet == self.game.min_bet:
+                if chance <= 0.50:  # Chance to check
+                    return "check"
+                elif chance <= 0.75:  # Adjusted probability for 'call' after check
+                    return "call"
+                else:
+                    return "raise"
+                
 
 class PreFlop:
     def __init__ (self, game):
@@ -82,35 +132,57 @@ class PreFlop:
 
     def start_round(self):
         
-        # begin round with small and big blinds
+        # preflop
         self.bet_blinds(0,"small")
         self.bet_blinds(1,"big")
+        self.player_betting_round()
 
+        # flop
+        flop_cards = self.game.deck.reveal_flop()
+        self.player_betting_round()
+
+        # turn
+        self.game.deck.burn()
+        turn_and_flop_cards = self.game.deck.reveal_turn_river("Turn", flop_cards)
+        self.player_betting_round()
+
+        # river
+        self.game.deck.burn()
+        self.game.deck.reveal_turn_river("River", turn_and_flop_cards)
+        self.player_betting_round()
+
+    def player_betting_round(self):
         another_round_needed = True # flag to track if another betting round is needed
+        first_iteration = True # flag to check the first iteration
 
         while another_round_needed:
             another_round_needed = False
-            for player in self.players:
-                if player.status == "eliminated":
+            for i, player in enumerate(self.players):
+                if player.status == "eliminated" or player.status == "all-in":
                     continue
+
+                if first_iteration and i < 2: # skip the first and second player in the first iteration
+                    continue 
+
                 if player.current_bet < self.game.min_bet: # check if the player needs to make a decision
                     self.player_action(player)
                     another_round_needed = True
 
+                else:
+                    another_round_needed = False
+                    
+
     def player_action(self, player):
-        user_decision = User_Decision(self.game)  # create an instance of User_Decisions
-        decision = Chance.get_random_value()
-        if player.is_user == True:
-            user_decision.ask_user()
-        else:
-            if decision == "fold":
-                self.fold(player)
-            elif decision == "check":
-                self.check(player)
-            elif decision == "call":
-                self.bet_call(player)
-            elif decision == "raise":
-                self.bet_raise(player, self.game.min_bet * 2)
+        player_decision = Player_Decision(self.game)  # create an instance of User_Decisions
+        decision = player_decision.ask_player(player)
+        if decision == "fold":
+            self.fold(player)
+        elif decision == "check":
+            self.check(player)
+        elif decision == "call":
+            self.bet_call(player)
+        elif decision == "raise":
+            self.bet_raise(player, self.game.min_bet * 2)
 
     def bet_blinds(self, player_index, blind):
         player = self.players[player_index]
@@ -131,10 +203,10 @@ class PreFlop:
     
     def check(self, player):
         if player.current_bet == self.game.min_bet:
-            print(f"player {player.id} checks")
+            print(f"Player {player.id} checks")
         else:
             self.game.num_opponents -= 1
-            print(f"player {player.id} folds")
+            self.fold(player)
     
     def bet_call(self, player):
         if player.stack >= self.game.min_bet:
@@ -183,7 +255,7 @@ class Game:
 def main():
     # ask user how many players they want
     try:
-        num_opponents = int(input("How many players at the table? "))
+        num_opponents = int(input("How many players at the table? ")) - 1
         if 2 <= num_opponents <= 10:
             game = Game(num_opponents)
             game.start()
