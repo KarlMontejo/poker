@@ -32,7 +32,8 @@ class Deck:
         flop_cards = [self.cards.pop() for _ in range(3)]
         flop_str = ', '.join(str(card) for card in flop_cards)
         print(f"-------------------------------------- [Flop] --------------------------------------")
-        print(f"The flop is: {flop_str}")
+        print(f"The Flop is: {flop_str}")
+        print(f"Community Cards: {flop_str}")
         return flop_cards
     
     def reveal_turn_river(self, type, flop_cards):
@@ -63,6 +64,7 @@ class Player:
         self.status = "active"
         self.is_user = is_user
         self.stack = 1000
+        self.player_id = 0
     
     def bust_out(self):
         self.status = "eliminated"
@@ -107,19 +109,19 @@ class Player_Decision:
             return user_decision
 
         else:
-            # Decision logic for non-user players
+            # temporary decision logic for non-user players
             chance = random.uniform(0, 1)
             if current_player.current_bet < self.game.min_bet:
                 if chance <= 0.10:
                     return "fold"
-                elif chance <= 0.60:  # Adjusted probability for 'call'
+                elif chance <= 0.60:
                     return "call"
                 else:
                     return "raise"
             elif current_player.current_bet == self.game.min_bet:
-                if chance <= 0.50:  # Chance to check
+                if chance <= 0.50:
                     return "check"
-                elif chance <= 0.75:  # Adjusted probability for 'call' after check
+                elif chance <= 0.75: 
                     return "call"
                 else:
                     return "raise"
@@ -152,24 +154,19 @@ class PreFlop:
         self.player_betting_round()
 
     def player_betting_round(self):
-        another_round_needed = True # flag to track if another betting round is needed
-        first_iteration = True # flag to check the first iteration
-
+        another_round_needed = True
+        first_iteration = True
         while another_round_needed:
             another_round_needed = False
             for i, player in enumerate(self.players):
-                if player.status == "eliminated" or player.status == "all-in":
+                if player.status in ["eliminated", "all-in"]:
                     continue
-
-                if first_iteration and i < 2: # skip the first and second player in the first iteration
+                if first_iteration and i < 2:
                     continue 
-
-                if player.current_bet < self.game.min_bet: # check if the player needs to make a decision
+                if player.current_bet < self.game.min_bet:
                     self.player_action(player)
                     another_round_needed = True
-
-                else:
-                    another_round_needed = False
+            first_iteration = False
                     
 
     def player_action(self, player):
@@ -216,6 +213,7 @@ class PreFlop:
             print(f"Player {player.id} calls")
             print(f"Pot is now {self.game.pot_total}")
         else:
+            self.bet_all_in(player)
             print(f"Player {player.id} goes all-in for {player.stack} (Player {player.id} does not have enough to call)")
     
     def bet_raise(self, player, amount):
@@ -227,12 +225,23 @@ class PreFlop:
             print(f"Player {player.id} raises for {amount}")
             print(f"Pot is now {self.game.pot_total}")
         else:
+            self.bet_all_in(player)
             print(f"Player {player.id} goes all-in (Player {player.id} does not have enough to raise)")
 
     def fold(self, player):
         player.bust_out()
         self.game.num_opponents -= 1
         print(f"Player {player.id} folds")
+
+    def bet_all_in(self, player):
+        player.all_in
+        player.current_bet = player.stack 
+        player.stack = 0
+        if self.game.min_bet < player.stack:
+            self.game.min_bet = player.stack
+            self.game.pot_total += player.stack
+        elif self.game.min_bet >= player.stack:
+            print(f"update logic to add side pot for player {player.player_id}")
 
 class Game:
     def __init__(self, num_opponents):
@@ -241,13 +250,17 @@ class Game:
         self.user_index = round(self.num_opponents / 2)
         self.players = [Player(i, is_user=(i == self.user_index)) for i in range(1, num_opponents + 2)]
         self.pot_total = 0
+        self.sidepots = [0,0,0,0,0,0,0,0,0,0]
         self.min_bet = 0
         self.preflop = PreFlop(self) # pass the game instance to PreFlop class
 
     def start(self):
         self.deck.shuffle()
+        i = 1
         for player in self.players:
+            player.player_id = i
             player.deal_hand(self.deck.deal(2))
+            i += 1
         print(f"Your cards are: {self.players[self.user_index].show_hand()} and you are seated {self.user_index}th from the dealer")
         self.preflop.start_round()
         
@@ -268,3 +281,6 @@ def main():
 # run the game
 if __name__ == "__main__":
     main()
+
+
+# define a new class that checks the end of each round to calculate side pots when necessary or do any other checks to determine how the pot is distributed or see what players are still in
