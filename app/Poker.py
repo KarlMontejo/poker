@@ -1,7 +1,4 @@
-# Poker
-# Version: 1.0
-# Fully Working?: No
-
+from utils.lc import opponent_decision_langchain
 import random
 
 class Card:
@@ -90,20 +87,20 @@ class Player_Decision:
     def ask_player(self, player):
         current_player = player 
         if current_player.is_user:
-            # Print the current situation for the user
+            # print the current situation for the user
             print(f"Your current bet: {current_player.current_bet}")
             print(f"Minimum bet to stay in the game: {self.game.min_bet}")
             print(f"Your stack: {current_player.stack}")
             print(f"Pot total: {self.game.pot_total}")
 
-            # Determine the options available to the user
+            # determine the options available to the user
             self.user_options = ['fold']
             if current_player.current_bet < self.game.min_bet:
                 self.user_options += ['call', 'raise']
             if current_player.current_bet == self.game.min_bet:
                 self.user_options.append('check')
             
-            # Get user decision
+            # get user decision
             user_decision = input(f"It's your turn. Here are your options: {self.user_options}\n")
             print(f"You chose: {user_decision}")
             return user_decision
@@ -276,11 +273,6 @@ def main():
             print("There must be at least 2 or no more than 10 opponents")
     except ValueError:
         print("Invalid input. Please enter a number.")
-    
-
-# run the game
-if __name__ == "__main__":
-    main()
 
 
 # define a new class that checks the end of each round to calculate side pots when necessary or do any other checks to determine how the pot is distributed or see what players are still in
