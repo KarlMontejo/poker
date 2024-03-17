@@ -11,8 +11,8 @@ class Card:
 
 class Deck:
     def __init__(self):
-        suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
-        values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'Jack', 'Queen', 'King', 'Ace']
+        suits = ['H', 'D', 'C', 'S']
+        values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
         self.cards = [Card(suit, value) for suit in suits for value in values] # creates a list for cards in the deck with each comb. of suit and value
 
     def shuffle(self):

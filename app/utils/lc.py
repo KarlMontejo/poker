@@ -3,6 +3,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.pydantic_v1 import BaseModel, Field, validator
 from langchain_openai import ChatOpenAI
 from typing import List, Optional
+from dotenv import load_dotenv
 import os
 import streamlit as st 
 import json
@@ -14,6 +15,10 @@ def opponent_decision_langchain(poker_data):
         decision: str = Field(description="The decision of the ")
         bet: float = Field(description="")
         status: str = Field(description="")
+
+    # load api key
+    load_dotenv()
+    api_key = os.getenv('API_KEY')
 
     # model
     model = ChatOpenAI(model="gpt-3.5-turbo-0125", temperature=0, openai_api_key="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")
