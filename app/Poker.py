@@ -1,67 +1,25 @@
 from utils.lc import opponent_decision_langchain
+import streamlit as st
+import math
 import random
 
-class Card:
-    def __init__(self, suit, value):
-        self.suit = suit
-        self.value = value
-
-    def __repr__(self):
-        return f"{self.value} of {self.suit}"
-
-class Deck:
-    def __init__(self):
-        suits = ['H', 'D', 'C', 'S']
-        values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
-        self.cards = [Card(suit, value) for suit in suits for value in values] # creates a list for cards in the deck with each comb. of suit and value
-
-    def shuffle(self):
-        random.shuffle(self.cards)
-
-    def deal(self, num_cards):
-        return [self.cards.pop() for _ in range(num_cards)]
-    
-    def burn(self):
-        burn_card = [self.cards.pop() for _ in range(1)]
-        return burn_card
-    
-    def reveal_flop(self):
-        flop_cards = [self.cards.pop() for _ in range(3)]
-        flop_str = ', '.join(str(card) for card in flop_cards)
-        print(f"-------------------------------------- [Flop] --------------------------------------")
-        print(f"The Flop is: {flop_str}")
-        print(f"Community Cards: {flop_str}")
-        return flop_cards
-    
-    def reveal_turn_river(self, type, flop_cards):
-        flop_str = ', '.join(str(card) for card in flop_cards)
-        turn_str = ""  # Initialize turn_str here
-
-        if type == "Turn":
-            turn_card = [self.cards.pop() for _ in range(1)]
-            turn_str = ', '.join(str(card) for card in turn_card)
-            print(f"-------------------------------------- [{type}] --------------------------------------")
-            print(f"The {type} is: {turn_str}")
-            print(f"Community Cards: {flop_str}, {turn_str}")
-            return turn_card + flop_cards  # Return the updated list of community cards
-
-        elif type == "River":
-            river_card = [self.cards.pop() for _ in range(1)]
-            river_str = ', '.join(str(card) for card in river_card)
-            print(f"-------------------------------------- [{type}] --------------------------------------")
-            print(f"The {type} is: {river_str}")
-            print(f"Community Cards: {flop_str}, {turn_str}, {river_str}")
-            return river_card + flop_cards + [turn_str]  # Return the updated list of community cards
-    
 class Player:
-    def __init__(self, id, is_user = False):
+    def __init__(self, id, deck, is_user=False):
         self.id = id
         self.hand = []
         self.current_bet = 0
         self.status = "active"
         self.is_user = is_user
         self.stack = 1000
-        self.player_id = 0
+        self.player_id = id
+        self.container = None
+        self.column = None
+        self.deck = deck
+    
+    def deal(self):
+        self.hand = self.deck.deal(2)
+        return self.hand
+
     
     def bust_out(self):
         self.status = "eliminated"
@@ -69,60 +27,74 @@ class Player:
     def all_in(self):
         self.status = "all-in"
 
-    def deal_hand(self, hand):
-        self.hand = hand
+class Game():
+    def __init__(self, deck, num_opponents, opp_difficulty):
+        self.deck = deck
+        self.num_opponents = num_opponents
+        self.opp_difficulty = opp_difficulty
+        self.num_players = num_opponents + 1
+        self.players = []
+        self.create_players()
+
+    def create_players(self):
+        # create the user as player 0
+        self.players.append(Player(id=0, deck = self.deck, is_user=True))
+        # create opponents
+        for i in range(1, self.num_opponents + 1):
+            self.players.append(Player(id=i, deck = self.deck, is_user=False))
+        return self.players
     
-    def show_hand(self):
-        return f"{self.hand}"
+    def deal_players(self):
+        for player in self.players:
+            player.deck.deal(2)
 
 
-class Player_Decision:
-    def __init__(self, game):
-        self.game = game
-        self.players = game.players
-        self.num_opponents = len(game.players) - 1
-        self.user_index = game.user_index
-        self.user_options = []
+class Card:
+    def __init__(self, suit, value):
+        self.suit = suit
+        self.value = value
+
+    def __repr__(self):
+        return f"{self.value}{self.suit}"
     
-    def ask_player(self, player):
-        current_player = player 
-        if current_player.is_user:
-            # print the current situation for the user
-            print(f"Your current bet: {current_player.current_bet}")
-            print(f"Minimum bet to stay in the game: {self.game.min_bet}")
-            print(f"Your stack: {current_player.stack}")
-            print(f"Pot total: {self.game.pot_total}")
+    @classmethod
+    def split_card(cls,cards_str):
+        card1, card2 = cards_str.split(',')
+        return card1, card2
 
-            # determine the options available to the user
-            self.user_options = ['fold']
-            if current_player.current_bet < self.game.min_bet:
-                self.user_options += ['call', 'raise']
-            if current_player.current_bet == self.game.min_bet:
-                self.user_options.append('check')
-            
-            # get user decision
-            user_decision = input(f"It's your turn. Here are your options: {self.user_options}\n")
-            print(f"You chose: {user_decision}")
-            return user_decision
+    @staticmethod
+    def suit_convert(card_suit):
+        if card_suit == "S":
+            return "<span style='color: black;'>♠️</span>"
+        elif card_suit == "D":
+            return "<span style='color: red;'>♦️</span>"
+        elif card_suit == "C":
+            return "<span style='color: black;'>♣️</span>"
+        elif card_suit == "H":
+            return "<span style='color: red;'>♥️</span>"
 
-        else:
-            # temporary decision logic for non-user players
-            chance = random.uniform(0, 1)
-            if current_player.current_bet < self.game.min_bet:
-                if chance <= 0.10:
-                    return "fold"
-                elif chance <= 0.60:
-                    return "call"
-                else:
-                    return "raise"
-            elif current_player.current_bet == self.game.min_bet:
-                if chance <= 0.50:
-                    return "check"
-                elif chance <= 0.75: 
-                    return "call"
-                else:
-                    return "raise"
-                
+class Deck:
+    def __init__(self):
+        suits = ['S', 'H', 'C', 'D']
+        values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+        self.cards = [Card(suit, value) for suit in suits for value in values]
+
+    def shuffle(self):
+        random.shuffle(self.cards)
+
+    def deal(self, num_cards):
+        if len(self.cards) < num_cards:
+            raise ValueError("Not enough cards in the deck to deal.")
+        return [self.cards.pop() for _ in range(num_cards)]
+
+    def burn(self):
+        return self.cards.pop()
+
+    def reveal_flop(self):
+        return self.deal(3)
+    
+    def reveal_turn_or_river(self):
+        return self.deal(1)
 
 class PreFlop:
     def __init__ (self, game):
@@ -164,19 +136,6 @@ class PreFlop:
                     self.player_action(player)
                     another_round_needed = True
             first_iteration = False
-                    
-
-    def player_action(self, player):
-        player_decision = Player_Decision(self.game)  # create an instance of User_Decisions
-        decision = player_decision.ask_player(player)
-        if decision == "fold":
-            self.fold(player)
-        elif decision == "check":
-            self.check(player)
-        elif decision == "call":
-            self.bet_call(player)
-        elif decision == "raise":
-            self.bet_raise(player, self.game.min_bet * 2)
 
     def bet_blinds(self, player_index, blind):
         player = self.players[player_index]
@@ -239,40 +198,3 @@ class PreFlop:
             self.game.pot_total += player.stack
         elif self.game.min_bet >= player.stack:
             print(f"update logic to add side pot for player {player.player_id}")
-
-class Game:
-    def __init__(self, num_opponents):
-        self.deck = Deck()
-        self.num_opponents = num_opponents
-        self.user_index = round(self.num_opponents / 2)
-        self.players = [Player(i, is_user=(i == self.user_index)) for i in range(1, num_opponents + 2)]
-        self.pot_total = 0
-        self.sidepots = [0,0,0,0,0,0,0,0,0,0]
-        self.min_bet = 0
-        self.preflop = PreFlop(self) # pass the game instance to PreFlop class
-
-    def start(self):
-        self.deck.shuffle()
-        i = 1
-        for player in self.players:
-            player.player_id = i
-            player.deal_hand(self.deck.deal(2))
-            i += 1
-        print(f"Your cards are: {self.players[self.user_index].show_hand()} and you are seated {self.user_index}th from the dealer")
-        self.preflop.start_round()
-        
-
-def main():
-    # ask user how many players they want
-    try:
-        num_opponents = int(input("How many players at the table? ")) - 1
-        if 2 <= num_opponents <= 10:
-            game = Game(num_opponents)
-            game.start()
-        else:
-            print("There must be at least 2 or no more than 10 opponents")
-    except ValueError:
-        print("Invalid input. Please enter a number.")
-
-
-# define a new class that checks the end of each round to calculate side pots when necessary or do any other checks to determine how the pot is distributed or see what players are still in

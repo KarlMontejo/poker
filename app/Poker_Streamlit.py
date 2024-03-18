@@ -2,24 +2,61 @@ import streamlit as st
 import pandas as pd
 import math
 import streamlit_nested_layout
-from Streamlit_Helpers import Streamlit_Card, Streamlit_Player
-from Poker import Card, Deck, Player, Player_Decision
+from Poker import Game, Deck, Player
+
+
 
 # title
 st.title('Poker🃏')
-
-
-# small text box
 st.info(f"Play poker against opponents that utilize Langchain for decision-making.")
-
 st.markdown("---")
 
 # opponents user input sidebar
-st.sidebar.markdown('Use the section below to adjust your opponents before starting the game')
 st.sidebar.markdown('### Opponents')
+st.sidebar.info('adjust your opponents before starting the game')
 with st.sidebar.expander("Opponent Options"):
     st.session_state.num_opponents = st.slider('Number of Opponents', min_value = 1, max_value = 10, step = 1)
-    st.radio('Select Opponent Difficulty', ["Amateur", "Intermediate", "Expert"])
+    st.session_state.opp_difficulty = st.radio('Select Opponent Difficulty', ["Amateur", "Intermediate", "Expert"])
+st.sidebar.markdown('---')
+
+
+# initialize game
+if 'game' not in st.session_state:
+    st.session_state.deck = Deck()
+    st.session_state.deck.shuffle()
+    st.session_state.game = Game(deck=st.session_state.deck, num_opponents=st.session_state.num_opponents, opp_difficulty=st.session_state.opp_difficulty)
+    st.session_state.players = st.session_state.game.create_players()
+
+# debug
+st.sidebar.markdown('### Debug')
+st.sidebar.info('click button to reveal debug options')
+with st.sidebar.expander('Debugging Options'):
+    st.session_state.debug_mode = st.toggle('debug')
+    st.session_state.god_mode = st.toggle('god mode')
+if st.session_state.get('debug_mode', False):
+    st.session_state.game = Game(st.session_state.deck, st.session_state.num_opponents, st.session_state.opp_difficulty)
+    st.session_state.players = st.session_state.game.create_players()
+    with st.sidebar.expander('Debugging Section'):
+        with st.expander("Session State"):
+            st.json(st.session_state)
+        with st.expander("Game"):
+            st.markdown(f"Game (num_players): {st.session_state.game.num_players}")
+            st.markdown(f"Game (num_opponents): {st.session_state.game.num_opponents}")
+            st.markdown(f"Game (opp_difficulty): {st.session_state.game.opp_difficulty}")
+        with st.expander("Deck"):
+            st.markdown(f"Deck: {st.session_state.deck}")
+        with st.expander("Players"):
+            with st.expander("User"):
+                st.markdown(f"Player: {st.session_state.players[0]}")
+                st.markdown(f"Hand: {st.session_state.players[0].hand}")
+            with st.expander("Opponents"):
+                st.markdown(f"Players: {st.session_state.players}")
+else:
+    st.sidebar.write("debug mode is off")
+
+# button to deal a new hand (not necessary)
+if st.button('Deal Player'):
+    st.session_state.game.deal_players()
 
 # table
 st.header("Table")
@@ -28,51 +65,107 @@ st.markdown(f"<h1 style='text-align: center;'>DEALER</h1>", unsafe_allow_html=Tr
 # create a row of columns for the cards
 col1_table,col2_table,col3_table,col4_table,col5_table,col6_table = st.columns(6)
 
-pos_1, pos_2, pos_3, pos_4, pos_5, pos_6, pos_7, pos_8, pos_9, pos_10, hand_pos_1, hand_pos_2, hand_pos_3, hand_pos_4, hand_pos_5, hand_pos_6, hand_pos_7, hand_pos_8, hand_pos_9, hand_pos_10 = Streamlit_Player.get_position(st.session_state.num_opponents)
+# create a placeholder for the cards display
+if 'position1_hand' not in st.session_state:
+    st.session_state.position1_hand = '1🃏'
+    st.session_state.position2_hand = '2🃏'
+    st.session_state.position3_hand = '3🃏'
+    st.session_state.position4_hand = '4🃏'
+    st.session_state.position5_hand = '5🃏'
+    st.session_state.position6_hand = '6🃏'
+    st.session_state.position7_hand = '7🃏'
+    st.session_state.position8_hand = '8🃏'
+    st.session_state.position9_hand = '9🃏'
+    st.session_state.position10_hand = '10🃏'
 
-table_flop_1 = ["AS"]
-table_flop_2 = ["KH"]
-table_flop_3 = ["QC"]
-table_burn = ["burn"]
-table_turn = ["JH"]
-table_river = ["10S"]
+px_xl = "380"
+px_lg = "100"
+px_md = "90" # must be <= 90
+px_sm = "20"
+
+# position 1
+container_position1 = st.container()
+with container_position1:
+    with col5_table:
+        st.markdown(f"<div style='height: 0px;'>&nbsp;</div>", unsafe_allow_html=True)
+        st.markdown(f"<h1 style='text-align: center;'>{st.session_state.position1_hand}</h1>", unsafe_allow_html=True)
+        st.markdown(f"<div style='height: {px_lg}px;'>&nbsp;</div>", unsafe_allow_html=True)
+
+# position 2
+container_position2 = st.container()
+with container_position2:
+    with col6_table:
+        st.markdown(f"<div style='height: {px_md}px;'>&nbsp;</div>", unsafe_allow_html=True)
+        st.markdown(f"<h1 style='text-align: center;'>{st.session_state.position2_hand}</h1>", unsafe_allow_html=True)
+        st.markdown(f"<div style='height: {px_sm}px;'>&nbsp;</div>", unsafe_allow_html=True)
+
+# position 3
+container_position3 = st.container()
+with container_position3:
+    with col6_table:
+        st.markdown(f"<div style='height: {px_sm}px;'>&nbsp;</div>", unsafe_allow_html=True)
+        st.markdown(f"<h1 style='text-align: center;'>{st.session_state.position3_hand}</h1>", unsafe_allow_html=True)
+        st.markdown(f"<div style='height: 0px;'>&nbsp;</div>", unsafe_allow_html=True)
+    
+# position 4
+container_position4 = st.container()
+with container_position4:
+    with col5_table:
+        st.markdown(f"<div style='height: {px_lg}px;'>&nbsp;</div>", unsafe_allow_html=True)
+        st.markdown(f"<h1 style='text-align: center;'>{st.session_state.position4_hand}</h1>", unsafe_allow_html=True)
+        st.markdown(f"<div style='height: 0px;'>&nbsp;</div>", unsafe_allow_html=True)
+
+# position 5
+container_position5 = st.container()
+with container_position5:
+    with col4_table:
+        st.markdown(f"<div style='height: {px_xl}px;'>&nbsp;</div>", unsafe_allow_html=True)
+        st.markdown(f"<h1 style='text-align: center;'>{st.session_state.position5_hand}</h1>", unsafe_allow_html=True)
+        st.markdown(f"<div style='height: 0px;'>&nbsp;</div>", unsafe_allow_html=True)
+
+# position 6
+container_position6 = st.container()
+with container_position6:
+    with col3_table:
+        st.markdown(f"<div style='height: {px_xl}px;'>&nbsp;</div>", unsafe_allow_html=True)
+        st.markdown(f"<h1 style='text-align: center;'>{st.session_state.position6_hand}</h1>", unsafe_allow_html=True)
+        st.markdown(f"<div style='height: 0px;'>&nbsp;</div>", unsafe_allow_html=True)
+
+# position 8
+container_position8 = st.container()
+with container_position8:
+    with col1_table:
+        st.markdown(f"<div style='height: {px_md}px;'>&nbsp;</div>", unsafe_allow_html=True)
+        st.markdown(f"<h1 style='text-align: center;'>{st.session_state.position8_hand}</h1>", unsafe_allow_html=True)
+        st.markdown(f"<div style='height: {px_sm}px;'>&nbsp;</div>", unsafe_allow_html=True)
 
 # position 9
-Streamlit_Card.display_cards_in_column(pos_9, col1_table, hand_pos_9, 10, 130, 50) 
-# flop 1
-Streamlit_Card.display_cards_in_column("", col1_table, table_flop_1, 10, 0, 0)
-# position 8
-Streamlit_Card.display_cards_in_column(pos_8, col1_table, hand_pos_8, 10, 20, 0)
+container_position9 = st.container()
+with container_position9:
+    with col1_table:
+        st.markdown(f"<div style='height: {px_sm}px;'>&nbsp;</div>", unsafe_allow_html=True)
+        st.markdown(f"<h1 style='text-align: center;'>{st.session_state.position9_hand}</h1>", unsafe_allow_html=True)
+        st.markdown(f"<div style='height: 0px;'>&nbsp;</div>", unsafe_allow_html=True)
+
 # position 10
-Streamlit_Card.display_cards_in_column(pos_10, col2_table, hand_pos_10, 10, 0, 160)
-# flop 2
-Streamlit_Card.display_cards_in_column("", col2_table, table_flop_2, 10, 0, 0)
+container_position6 = st.container()
+with container_position6:
+    with col2_table:
+        st.markdown(f"<div style='height: 0px;'>&nbsp;</div>", unsafe_allow_html=True)
+        st.markdown(f"<h1 style='text-align: center;'>{st.session_state.position10_hand}</h1>", unsafe_allow_html=True)
+        st.markdown(f"<div style='height: {px_lg}px;'>&nbsp;</div>", unsafe_allow_html=True)
+
 # position 7
-Streamlit_Card.display_cards_in_column(pos_7, col2_table, hand_pos_7, 10, 130, 0)
-# flop 3
-Streamlit_Card.display_cards_in_column("", col3_table, [""], 10, 160, 0)
-Streamlit_Card.display_cards_in_column("", col3_table, table_flop_3, 10, 0, 0)
-# user
-Streamlit_Card.display_cards_in_column("User", col3_table, hand_pos_6, 10, 240, 0)
-# burn
-Streamlit_Card.display_cards_in_column("", col4_table, [""], 10, 160, 0)
-Streamlit_Card.display_cards_in_column("", col4_table, table_burn, 10, 0, 0)
-# opponent 5
-Streamlit_Card.display_cards_in_column(pos_5, col4_table, hand_pos_5, 10, 240, 30)
-# opponent 1
-Streamlit_Card.display_cards_in_column(pos_1, col5_table, hand_pos_1, 10, 0, 160)
-# turn
-Streamlit_Card.display_cards_in_column("", col5_table, table_turn, 10, 0, 0)
-# opponent 4
-Streamlit_Card.display_cards_in_column(pos_4, col5_table, hand_pos_4, 10, 130, 0)
-# opponent 2
-Streamlit_Card.display_cards_in_column(pos_2, col6_table, hand_pos_2, 10, 120, 60)
-# river
-Streamlit_Card.display_cards_in_column("", col6_table, table_river, 10, 00, 0)
-# opponent 3
-Streamlit_Card.display_cards_in_column(pos_3, col6_table, hand_pos_3, 10, 20, 0)
+container_position7 = st.container()
+with container_position7:
+    with col2_table:
+        st.markdown(f"<div style='height: {px_lg}px;'>&nbsp;</div>", unsafe_allow_html=True)
+        st.markdown(f"<h1 style='text-align: center;'>{st.session_state.position7_hand}</h1>", unsafe_allow_html=True)
+        st.markdown(f"<div style='height: 0px;'>&nbsp;</div>", unsafe_allow_html=True)
+
 
 # player options
+st.markdown ("---")
 st.markdown ("### Make your move:")
 col_fold, col_check, col_call, col_raise = st.columns(4)
 col_fold.button('Fold', use_container_width=True)
@@ -86,9 +179,9 @@ if col_raise.button('Raise', use_container_width=True):
     else:
         st.session_state.show_raise_slider = not st.session_state.show_raise_slider  # toggle value if it exists
 
-
 # check if the slider should be shown
 if st.session_state.get('show_raise_slider', False):
     # display the slider
     with col_raise.expander("Choose your raise amount:"):
         raise_amount = st.slider("Raise Amount", min_value=0, max_value=1000, value=100, step=10)
+        
