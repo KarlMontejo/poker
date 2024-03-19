@@ -4,20 +4,21 @@ import math
 import random
 
 class Player:
-    def __init__(self, id, is_user=False):
+    def __init__(self, id=None, is_user=False):
         self.hand = []
         self.current_bet = 0
         self.status = "active"
         self.is_user = is_user
         self.stack = 1000
-        self.id = id
         self.container = None
         self.column = None
+        self.id = id
+            
     
     def player_display(self):
         st.markdown(f"<h1 style='text-align: center;'>{self.hand}</h1>", unsafe_allow_html=True)
         if self.is_user:
-            st.markdown(f"<h5 style='text-align: center;'>You</h5>", unsafe_allow_html=True)
+            st.markdown(f"<h5 style='text-align: center;'>You (P{self.id})</h5>", unsafe_allow_html=True)
         else:
             st.markdown(f"<h5 style='text-align: center;'>Player {self.id}</h5>", unsafe_allow_html=True)
 
@@ -39,7 +40,7 @@ class Game():
             '2': None,
             '3': None,
             '4': None,
-            '5': Player(6, is_user=True),
+            '5': Player(is_user=True),
             '6': None,
             '7': None,
             '8': None,
@@ -52,19 +53,24 @@ class Game():
         # create opponents
         create_opponents = {
             "1" : [0],
-            "2" : [0,9],
-            "3" : [0,4,8],
+            "2" : [1,8],
+            "3" : [1,4,8],
             "4" : [0,4,7,9],
-            "5" : [0,2,4,6,9],
+            "5" : [0,2,4,7,9],
             "6" : [0,2,4,6,7,9],
             "7" : [0,2,3,4,6,7,9],
             "8" : [0,1,2,3,4,6,7,9],
             "9" : [0,1,2,3,4,6,7,8,9]
         }
 
+        opponent_id = 1
         opponents_map = create_opponents[str(self.num_opponents)]
         for opponent_idx in opponents_map:
-            self.players[str(opponent_idx)] = Player(id=str(opponent_idx+1))
+            if opponent_idx > 5 and not self.players['5'].id:
+                self.players['5'].id = opponent_id
+                opponent_id += 1
+            self.players[str(opponent_idx)] = Player(id=str(opponent_id))
+            opponent_id += 1
     
     def display_table(self):
         # table
