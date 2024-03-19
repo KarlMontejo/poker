@@ -2,6 +2,7 @@ from utils.lc import opponent_decision_langchain
 import streamlit as st
 import math
 import random
+import time
 
 class Player:
     def __init__(self, id=None, is_user=False):
@@ -14,14 +15,22 @@ class Player:
         self.column = None
         self.id = id
             
-    
     def player_display(self):
-        st.markdown(f"<h1 style='text-align: center;'>{self.hand}</h1>", unsafe_allow_html=True)
-        if self.is_user:
-            st.markdown(f"<h5 style='text-align: center;'>You (P{self.id})</h5>", unsafe_allow_html=True)
-        else:
-            st.markdown(f"<h5 style='text-align: center;'>Player {self.id}</h5>", unsafe_allow_html=True)
+        if self.container:
+            with self.container:
+                if self.hand:  
+                    card_displays = [f"{card.value}{Card.suit_convert(card.suit)}" for card in self.hand]
+                    cards_html = ''.join(card_displays)
+                    player_type = "You" if self.is_user else f"Player {self.id}"
+                    st.markdown(f"<h1 style='text-align: center;'>{cards_html}</h1><h5 style='text-align: center;'>{player_type}</h5>", unsafe_allow_html=True)
 
+    def show_hand(self):
+        if self.hand:
+            card_displays = [f"{card.value}{Card.suit_convert(card.suit)}" for card in self.hand]
+            cards_html = ''.join(card_displays)
+            hand_html = f"<h1 style='text-align: center;'>{cards_html}</h1>"
+        return hand_html
+        
     def bust_out(self):
         self.status = "eliminated"
 
@@ -29,11 +38,17 @@ class Player:
         self.status = "all-in"
 
 class Game():
-    def __init__(self, num_opponents, opp_difficulty):
+    def __init__(self, num_opponents, opp_difficulty, game_speed):
         self.deck = Deck()
+        self.deck.shuffle()
         self.num_opponents = num_opponents
         self.opp_difficulty = opp_difficulty
+        self.game_speed = game_speed
         self.num_players = num_opponents + 1
+        self.card_interval = 2 + (0.1 - 2) * ((self.game_speed - 1) / (5 - 1))
+        st.header("Table")
+        st.markdown(f"<h1 style='text-align: center;'>DEALER</h1>", unsafe_allow_html=True)
+        self.col1_table,self.col2_table,self.col3_table,self.col4_table,self.col5_table,self.col6_table = st.columns(6)
         self.players = {
             '0': None,
             '1': None,
@@ -71,17 +86,58 @@ class Game():
                 opponent_id += 1
             self.players[str(opponent_idx)] = Player(id=str(opponent_id))
             opponent_id += 1
-    
-    def display_table(self):
-        # table
-        st.header("Table")
-        st.markdown(f"<h1 style='text-align: center;'>DEALER</h1>", unsafe_allow_html=True)
 
-        # create a row of columns for the cards
-        col1_table,col2_table,col3_table,col4_table,col5_table,col6_table = st.columns(6)
-        
+    def init_community_cards(self, cc_type):
+        container_mapping = {
+            "flop_1": self.col1_table.empty(),
+            "flop_2": self.col2_table.empty(),
+            "flop_3": self.col3_table.empty(),
+            "burn": self.col4_table.empty(),
+            "turn": self.col5_table.empty(),
+            "river": self.col6_table.empty(),
+        }
+
+        target_container = container_mapping[cc_type]
+        with target_container:
+            st.markdown(f"<h1 style='text-align: center;'>&nbsp;</h1>", unsafe_allow_html=True)
+        return target_container
+
+    def display_community_cards(self, cc_type, container):
+        card_list_map = {
+            "flop_1": self.deck.flop,
+            "flop_2": self.deck.flop,
+            "flop_3": self.deck.flop,
+            "burn": self.deck.burnt,
+            "turn": self.deck.turn,
+            "river": self.deck.river,
+        }
+        if cc_type in ["turn", "river", "flop_1", "flop_2", "flop_3"]:
+            card = self.deck.reveal_community_card()[0] 
+            card_list = card_list_map[cc_type]
+            card_list.append(card)
+            with container:
+                card_html = f"{card.value}{Card.suit_convert(card.suit)}"
+                time.sleep(self.card_interval)
+                st.markdown(f"<h1 style='text-align: center;'>🃏</h1>", unsafe_allow_html=True)
+                time.sleep(self.card_interval)
+                st.markdown(f"<h1 style='text-align: center;'>{card_html}</h1>", unsafe_allow_html=True)
+        elif cc_type == "burn":
+            card = self.deck.burn()
+            card_list = card_list_map[cc_type]
+            card_list.append(card)
+            with container:
+                time.sleep(self.card_interval)
+                st.markdown(f"<h1 style='text-align: center;'>🃏</h1>", unsafe_allow_html=True)
+                time.sleep(self.card_interval)
+                st.markdown(f"<h1 style='text-align: center;'>🔥</h1>", unsafe_allow_html=True)
+                time.sleep(self.card_interval)
+                st.markdown(f"<h1 style='text-align: center;'>💨</h1>", unsafe_allow_html=True)
+                time.sleep(self.card_interval)
+                st.markdown(f"<h1 style='text-align: center;'>&nbsp;</h1>", unsafe_allow_html=True)
+
+    def display_table(self):
         # standardized pixel spacing
-        px_xl = "440"
+        px_xl = "250"
         px_lg = "110"
         px_md = "100" # must be <= 90
         px_sm = "20"
@@ -94,33 +150,65 @@ class Game():
             squares[square_pos] = column.empty()
             column.markdown(f"<div style='height: {pixel_2}px;'>&nbsp;</div>", unsafe_allow_html=True)
 
-        display_position(col5_table, px_zo, px_lg, 1)
-        display_position(col6_table, px_md, px_sm, 2) 
-        display_position(col6_table, px_sm, px_zo, 3) 
-        display_position(col5_table, px_lg, px_zo, 4) 
-        display_position(col4_table, px_xl, px_zo, 5) 
-        display_position(col3_table, px_xl, px_zo, 6) 
-        display_position(col2_table, px_zo, px_lg, 10) 
-        display_position(col2_table, px_lg, px_zo, 7) 
-        display_position(col1_table, px_md, px_sm, 9) 
-        display_position(col1_table, px_sm, px_zo, 8) 
-
-        st.expander('debug').json(self.players)
+        # table positions
+        display_position(self.col5_table, px_zo, px_lg, 1)
+        self.turn_container = self.init_community_cards("turn")
+        display_position(self.col6_table, px_md, px_sm, 2) 
+        self.river_container = self.init_community_cards("river")
+        display_position(self.col6_table, px_sm, px_zo, 3) 
+        display_position(self.col5_table, px_lg, px_zo, 4) 
+        self.col4_table.markdown(f"<div style='height: {px_xl}px;'>&nbsp;</div>", unsafe_allow_html=True)
+        self.burn_container = self.init_community_cards("burn")
+        display_position(self.col4_table, px_xl, px_zo, 5)
+        self.col3_table.markdown(f"<div style='height: {px_xl}px;'>&nbsp;</div>", unsafe_allow_html=True)
+        self.flop_3_container = self.init_community_cards("flop_3")
+        display_position(self.col3_table, px_xl, px_zo, 6) 
+        display_position(self.col2_table, px_zo, px_lg, 10) 
+        self.flop_2_container = self.init_community_cards("flop_2")
+        display_position(self.col2_table, px_lg, px_zo, 7) 
+        display_position(self.col1_table, px_md, px_sm, 9) 
+        self.flop_1_container = self.init_community_cards("flop_1")
+        display_position(self.col1_table, px_sm, px_zo, 8) 
 
         for key, value in squares.items():
-            with value:
-                if self.players[str(int(key)-1)]:
-                    player = self.players[str(int(key)-1)]
-                    player.player_display()
-                else:
-                    st.markdown(f"<h1 style='text-align: center;'>&nbsp</h1>", unsafe_allow_html=True)
-                    st.markdown(f"<h5 style='text-align: center;'>&nbsp</h5>", unsafe_allow_html=True)
+            if self.players[str(int(key)-1)]:
+                player = self.players[str(int(key)-1)]
+                player.player_display()
+                player.container = value
+                time.sleep(self.card_interval)
 
     def deal_players(self):
         players_list = [player for player in self.players.values() if player]
+        for _ in range(2):
+            for player in players_list:
+                dealt_cards = self.deck.deal(1)
+                player.hand += dealt_cards
         for player in players_list:
-            dealt_cards = self.deck.deal(2)
-            player.hand.append(dealt_cards)
+            with player.container:
+                st.markdown(f"<h1 style='text-align: center;'>&nbsp;</h1>", unsafe_allow_html=True)
+        for player in players_list:
+            with player.container:
+                player_type = "You" if player.is_user else f"Player {player.id}"
+                time.sleep(self.card_interval)
+                st.markdown(f"<h1 style='text-align: center;'>✋🤚</h1><h5 style='text-align: center;'>{player_type}</h5>", unsafe_allow_html=True)
+        for player in players_list:
+            with player.container:
+                player_type = "You" if player.is_user else f"Player {player.id}"
+                time.sleep(self.card_interval)
+                st.markdown(f"<h1 style='text-align: center;'>🃏🤚</h1><h5 style='text-align: center;'>{player_type}</h5>", unsafe_allow_html=True)
+        for player in players_list:
+            with player.container:
+                player_type = "You" if player.is_user else f"Player {player.id}"
+                time.sleep(self.card_interval)
+                st.markdown(f"<h1 style='text-align: center;'>🃏🃏</h1><h5 style='text-align: center;'>{player_type}</h5>", unsafe_allow_html=True)
+
+    def empty_player_containers(self):
+        players_list = [player for player in self.players.values() if player]
+        for player in players_list:
+            with player.container:
+                st.empty()
+        self.col4_table.empty()
+        self.col3_table.empty()
 
 class Card:
     def __init__(self, suit, value):
@@ -131,8 +219,9 @@ class Card:
         return f"{self.value}{self.suit}"
     
     @classmethod
-    def split_card(cls,cards_str):
-        card1, card2 = cards_str.split(',')
+    def split_card(cls, card_list):
+        cards_str = card_list[0]  
+        card1, card2 = cards_str.split(',') 
         return card1, card2
 
     @staticmethod
@@ -150,6 +239,11 @@ class Deck:
     def __init__(self):
         suits = ['S', 'H', 'C', 'D']
         values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+        self.flop = []
+        self.turn = []
+        self.river = []
+        self.burnt = []
+
         self.cards = [Card(suit, value) for suit in suits for value in values]
 
     def shuffle(self):
@@ -161,39 +255,17 @@ class Deck:
         return [self.cards.pop() for _ in range(num_cards)]
 
     def burn(self):
-        return self.cards.pop()
-
-    def reveal_flop(self):
-        return self.deal(3)
+        burnt_card = self.cards.pop()
+        return burnt_card
     
-    def reveal_turn_or_river(self):
-        return self.deal(1)
+    def reveal_community_card(self):
+        community_card = self.deal(1)
+        return community_card
 
 class PreFlop:
     def __init__ (self, game):
         self.game = game
         self.players = game.players
-
-    def start_round(self):
-        
-        # preflop
-        self.bet_blinds(0,"small")
-        self.bet_blinds(1,"big")
-        self.player_betting_round()
-
-        # flop
-        flop_cards = self.game.deck.reveal_flop()
-        self.player_betting_round()
-
-        # turn
-        self.game.deck.burn()
-        turn_and_flop_cards = self.game.deck.reveal_turn_river("Turn", flop_cards)
-        self.player_betting_round()
-
-        # river
-        self.game.deck.burn()
-        self.game.deck.reveal_turn_river("River", turn_and_flop_cards)
-        self.player_betting_round()
 
     def player_betting_round(self):
         another_round_needed = True
