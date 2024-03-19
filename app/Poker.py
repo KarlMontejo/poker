@@ -4,23 +4,23 @@ import math
 import random
 
 class Player:
-    def __init__(self, id, deck, is_user=False):
-        self.id = id
+    def __init__(self, id, is_user=False):
         self.hand = []
         self.current_bet = 0
         self.status = "active"
         self.is_user = is_user
         self.stack = 1000
-        self.player_id = id
+        self.id = id
         self.container = None
         self.column = None
-        self.deck = deck
     
-    def deal(self):
-        self.hand = self.deck.deal(2)
-        return self.hand
+    def player_display(self):
+        st.markdown(f"<h1 style='text-align: center;'>{self.hand}</h1>", unsafe_allow_html=True)
+        if self.is_user:
+            st.markdown(f"<h5 style='text-align: center;'>You</h5>", unsafe_allow_html=True)
+        else:
+            st.markdown(f"<h5 style='text-align: center;'>Player {self.id}</h5>", unsafe_allow_html=True)
 
-    
     def bust_out(self):
         self.status = "eliminated"
 
@@ -28,26 +28,93 @@ class Player:
         self.status = "all-in"
 
 class Game():
-    def __init__(self, deck, num_opponents, opp_difficulty):
-        self.deck = deck
+    def __init__(self, num_opponents, opp_difficulty):
+        self.deck = Deck()
         self.num_opponents = num_opponents
         self.opp_difficulty = opp_difficulty
         self.num_players = num_opponents + 1
-        self.players = []
+        self.players = {
+            '0': None,
+            '1': None,
+            '2': None,
+            '3': None,
+            '4': None,
+            '5': Player(6, is_user=True),
+            '6': None,
+            '7': None,
+            '8': None,
+            '9': None
+        }
+        self.positions_list = []
         self.create_players()
 
     def create_players(self):
-        # create the user as player 0
-        self.players.append(Player(id=0, deck = self.deck, is_user=True))
         # create opponents
-        for i in range(1, self.num_opponents + 1):
-            self.players.append(Player(id=i, deck = self.deck, is_user=False))
-        return self.players
-    
-    def deal_players(self):
-        for player in self.players:
-            player.deck.deal(2)
+        create_opponents = {
+            "1" : [0],
+            "2" : [0,9],
+            "3" : [0,4,8],
+            "4" : [0,4,7,9],
+            "5" : [0,2,4,6,9],
+            "6" : [0,2,4,6,7,9],
+            "7" : [0,2,3,4,6,7,9],
+            "8" : [0,1,2,3,4,6,7,9],
+            "9" : [0,1,2,3,4,6,7,8,9]
+        }
 
+        opponents_map = create_opponents[str(self.num_opponents)]
+        for opponent_idx in opponents_map:
+            self.players[str(opponent_idx)] = Player(id=str(opponent_idx+1))
+    
+    def display_table(self):
+        # table
+        st.header("Table")
+        st.markdown(f"<h1 style='text-align: center;'>DEALER</h1>", unsafe_allow_html=True)
+
+        # create a row of columns for the cards
+        col1_table,col2_table,col3_table,col4_table,col5_table,col6_table = st.columns(6)
+        
+        # standardized pixel spacing
+        px_xl = "440"
+        px_lg = "110"
+        px_md = "100" # must be <= 90
+        px_sm = "20"
+        px_zo = "0"
+
+        squares = {}
+        def display_position(column, pixel_1, pixel_2, square_pos):
+            nonlocal squares
+            column.markdown(f"<div style='height: {pixel_1}px;'>&nbsp;</div>", unsafe_allow_html=True)
+            squares[square_pos] = column.empty()
+            column.markdown(f"<div style='height: {pixel_2}px;'>&nbsp;</div>", unsafe_allow_html=True)
+
+        display_position(col5_table, px_zo, px_lg, 1)
+        display_position(col6_table, px_md, px_sm, 2) 
+        display_position(col6_table, px_sm, px_zo, 3) 
+        display_position(col5_table, px_lg, px_zo, 4) 
+        display_position(col4_table, px_xl, px_zo, 5) 
+        display_position(col3_table, px_xl, px_zo, 6) 
+        display_position(col2_table, px_zo, px_lg, 10) 
+        display_position(col2_table, px_lg, px_zo, 7) 
+        display_position(col1_table, px_md, px_sm, 9) 
+        display_position(col1_table, px_sm, px_zo, 8) 
+
+        st.expander('debug').json(self.players)
+
+        for key, value in squares.items():
+            with value:
+                if self.players[str(int(key)-1)]:
+                    player = self.players[str(int(key)-1)]
+                    player.player_display()
+                else:
+                    st.markdown(f"<h1 style='text-align: center;'>&nbsp</h1>", unsafe_allow_html=True)
+                    st.markdown(f"<h5 style='text-align: center;'>&nbsp</h5>", unsafe_allow_html=True)
+
+    def deal_players(self):
+        players_list = [player for player in self.players.values() if player]
+        for player in players_list:
+            dealt_cards = self.deck.deal(2)
+            player.hand.append(dealt_cards)
 
 class Card:
     def __init__(self, suit, value):
