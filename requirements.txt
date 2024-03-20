@@ -5,4 +5,3 @@ streamlit
 streamlit-aggrid
 streamlit-nested-layout
 python-dotenv
-streamlit_extras
