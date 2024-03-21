@@ -29,7 +29,7 @@ def decision_wrapper(player, poker_data):
 def init_game(container):
     # session state for game object
     if 'game' not in st.session_state:
-        st.session_state.game = Game(num_opponents=st.session_state.num_opponents, opp_difficulty=st.session_state.opp_difficulty, game_speed=st.session_state.game_speed)
+        st.session_state.game = Game(num_opponents=st.session_state.num_opponents, opp_difficulty=st.session_state.opp_difficulty, game_speed=st.session_state.game_speed, parent_container = container)
         st.session_state.table_initialized = False
     
 def display_table():
@@ -37,16 +37,12 @@ def display_table():
         st.session_state.table_container = st.session_state.game.init_table()
         st.session_state.table_initialized = True
     with st.session_state.table_container:
-        st.write("poop")
-        #st.session_state.game.update_table()
+        st.session_state.game.update_table_display()
     
 # title
 st.title('Poker🃏')
 st.info(f"Play poker against opponents that utilize Langchain for decision-making.")
 st.markdown("---")
-# table headers and dealer
-st.markdown(f"<h3 style='text-align: center;'>Table</h3>", unsafe_allow_html=True)
-st.markdown(f"<h1 style='text-align: center;'>DEALER</h1>", unsafe_allow_html=True)
 
 
 # table placeholder
@@ -106,6 +102,9 @@ else:
 if 'game' not in st.session_state:
     st.stop()
 
+if st.session_state.reveal_all_hands:
+    st.session_state.game.god_reveal_hands()
+    
 # ---------------------------------------------------------------- dynamic table ----------------------------------------------------------------
 
 display_table()
@@ -131,6 +130,10 @@ display_table()
 #    decision_wrapper(player[1], sim_game_data)
 
 # ---------------------------------------------------------------- dynamic table ----------------------------------------------------------------
+
+
+
+
 
 # debug mode update
 if st.session_state.get('debug_mode', False):

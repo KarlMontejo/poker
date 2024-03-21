@@ -14,24 +14,48 @@ class Player:
         self.container = None
         self.column = None
         self.id = id
+        self.deck = Deck()
     
+    # reveals the hand of the player in the table
     def display_data_html(self, cards):
-        player_type = "You" if self.is_user else f"Player {self.id}"
-        st.markdown(f"<h1 style='text-align: center;'>{cards}</h1><h5 style='text-align: center;'>{player_type}</h5><h5 style='text-align: center;'>{self.stack}  BB</h5>", unsafe_allow_html=True)
-            
-    def display(self):
+        player_type = "<span style='color: #48D1CC;'>You</span>" if self.is_user else f"Player {self.id}"
+        stack_html = f"<span style='background-color: #90EE90; padding: 5px 10px; border-radius: 5px; color: #505050;'>{self.stack} BB</span>"  # Added color: #505050 for dark grey
+        st.markdown(f"<h2 style='text-align: center;'>{cards}</h2><h5 style='text-align: center;'>{player_type}</h5><h5 style='text-align: center;'>{stack_html}</h5>", unsafe_allow_html=True)
+
+    # reveals the hand of the player in the table
+    def reveal_hand(self):
         if self.container:
             with self.container:
-                if self.hand:  
-                    card_displays = [f"{card.value}{Card.suit_convert(card.suit)}" for card in self.hand]
-                    cards_html = '&nbsp;'.join(card_displays)
+                if self.hand:
+                    if self.status == "active" and self.is_user: # user cards
+                        card_displays = [
+                            f"""<div style='background-color: white; border: 1px solid black; padding: 6px; border-radius: 6px; display: inline-flex; justify-content: center; align-items: center; margin: 1px; color: {"black" if card.suit in ["C", "S"] else "red"}; font-size: 28px; text-align: center; width: 48px; height: 67px; flex-direction: column;'>
+                                <span style='margin-bottom: -10px;'>{card.value}</span> 
+                                <span style='font-size: 28px; line-height: 1;'>{Card.suit_convert(card.suit)}</span>  
+                            </div>"""
+                            for card in self.hand
+                        ]
+                    elif self.status == "active" and not self.is_user: # back of cards
+                        card_displays = [self.deck.card_back_html + self.deck.card_back_html]
+                    elif self.status == "eliminated": # grey cards
+                        card_displays = [self.deck.table_emoji('💀')]
+                    elif self.status == "showdown": # opponent cards
+                        card_displays = [
+                            f"""<div style='background-color: white; border: 1px solid black; padding: 6px; border-radius: 6px; display: inline-flex; justify-content: center; align-items: center; margin: 1px; color: {"black" if card.suit in ["C", "S"] else "red"}; font-size: 28px; text-align: center; width: 48px; height: 67px; flex-direction: column;'>
+                                <span style='margin-bottom: -10px;'>{card.value}</span> 
+                                <span style='font-size: 28px; line-height: 1;'>{Card.suit_convert(card.suit)}</span>  
+                            </div>"""
+                            for card in self.hand
+                        ]
+                    cards_html = ''.join(card_displays)
                     self.display_data_html(cards_html)
 
+    # reveals the hand of the player anywhere in the ui
     def show_hand(self):
         if self.hand:
             card_displays = [f"{card.value}{Card.suit_convert(card.suit)}" for card in self.hand]
             cards_html = '&nbsp;'.join(card_displays)
-            hand_html = f"<h1 style='text-align: center;'>{cards_html}</h1>"
+            hand_html = f"<h2 style='text-align: center;'>{cards_html}</h2>"
         return hand_html
         
     def bust_out(self):
@@ -41,10 +65,10 @@ class Player:
         self.status = "all-in"
 
 class Game():
-    def __init__(self, num_opponents, opp_difficulty, game_speed):
+    def __init__(self, num_opponents, opp_difficulty, game_speed, parent_container):
 
         # parameters and attributes
-        self.parent_container = st.empty()
+        self.parent_container = parent_container
         self.num_opponents = num_opponents
         self.opp_difficulty = opp_difficulty
         self.game_speed = game_speed
@@ -113,8 +137,12 @@ class Game():
     # initialize table with players
     def init_table(self):
         with self.parent_container:
+                        
+            # table headers and dealer
+            st.markdown(f"<h3 style='text-align: center;'>Table</h3>", unsafe_allow_html=True)
+            st.markdown(f"<h1 style='text-align: center;'>DEALER</h1>", unsafe_allow_html=True)
+
             # table columns
-            
             col1_table,col2_table,col3_table,col4_table,col5_table,col6_table = st.columns(6)
 
             # initialize community card containers
@@ -139,10 +167,10 @@ class Game():
                 # Display an empty space in the target container
                 if target_container is not None:
                     with target_container:
-                        st.markdown(f"<h1 style='text-align: center;'>&nbsp;</h1>", unsafe_allow_html=True)
+                        st.markdown(f"<h2 style='text-align: center;'>&nbsp;&nbsp;{self.deck.table_emoji('&nbsp;')}</h2>", unsafe_allow_html=True)
             
             # standardized pixel spacing
-            px_xl = "280"
+            px_xl = "290"
             px_xl2 = "230"
             px_lg = "110"
             px_md = "85" # must be <= 90
@@ -162,42 +190,48 @@ class Game():
             
             # deal players animation
             def deal_players_animation():
+                card_back_html = self.deck.card_back_html
+
                 for player in self.players_list:
                     with player.container:
-                        st.markdown(f"<h1 style='text-align: center;'>&nbsp;</h1>", unsafe_allow_html=True)
-                for player in self.players_list:
-                    with player.container:
-                        time.sleep(self.card_interval)
-                        player.display_data_html('✋🤚')
-                for player in self.players_list:
-                    with player.container:
-                        time.sleep(self.card_interval)
-                        player.display_data_html('🃏🤚')
+                        st.markdown(f"<h2 style='text-align: center;'>&nbsp;</h2>", unsafe_allow_html=True)
+
                 for player in self.players_list:
                     with player.container:
                         time.sleep(self.card_interval)
-                        player.display_data_html('🃏🃏')
+                        player.display_data_html(self.deck.table_emoji('✋')+self.deck.table_emoji('🤚'))
+
+                for player in self.players_list:
+                    with player.container:
+                        time.sleep(self.card_interval)
+                        player.display_data_html(card_back_html+self.deck.table_emoji('🤚'))
+
+                for player in self.players_list:
+                    with player.container:
+                        time.sleep(self.card_interval)
+                        player.display_data_html(card_back_html + card_back_html)
+
                         if player.is_user:
                             time.sleep(self.card_interval)
-                            player.display()
+                            player.reveal_hand()
 
             # animation for community card deal
             def deal_cc_animation(container):
                 with container: 
                     time.sleep(self.card_interval)
-                    st.markdown(f"<h1 style='text-align: center;'>🃏</h1>", unsafe_allow_html=True)
+                    st.markdown(f"<h2 style='text-align: center;'>&nbsp;&nbsp;{self.deck.card_back_html}</h2>", unsafe_allow_html=True)
 
             # animation for burn deal
             def burn_animation(container):
                 with container:
                     time.sleep(self.card_interval)
-                    st.markdown(f"<h1 style='text-align: center;'>🃏</h1>", unsafe_allow_html=True)
+                    st.markdown(f"<h2 style='text-align: center;'>&nbsp;&nbsp;{self.deck.card_back_html}</h2>", unsafe_allow_html=True)
                     time.sleep(self.card_interval)
-                    st.markdown(f"<h1 style='text-align: center;'>🔥</h1>", unsafe_allow_html=True)
+                    st.markdown(f"<h2 style='text-align: center;'>&nbsp;&nbsp;{self.deck.table_emoji('🔥')}</h2>", unsafe_allow_html=True)
                     time.sleep(self.card_interval)
-                    st.markdown(f"<h1 style='text-align: center;'>💨</h1>", unsafe_allow_html=True)
+                    st.markdown(f"<h2 style='text-align: center;'>&nbsp;&nbsp;{self.deck.table_emoji('💨')}</h2>", unsafe_allow_html=True)
                     time.sleep(self.card_interval)
-                    st.markdown(f"<h1 style='text-align: center;'>&nbsp;</h1>", unsafe_allow_html=True)
+                    st.markdown(f"<h2 style='text-align: center;'>&nbsp;&nbsp;{self.deck.table_emoji('&nbsp;')}</h2>", unsafe_allow_html=True)
 
             # position 1
             display_position(col5_table, 1)
@@ -289,6 +323,12 @@ class Game():
 
 # --------------------------------------------------------------------- table init ---------------------------------------------------------------------
     
+    def update_table_display(self):
+        with self.parent_container:
+            for player in self.players_list:
+                    with player.container:
+                        player.reveal_hand()
+
     # display community card based on type of community card and container
     def display_cc(self, cc_type, container):
         card_list_map = {
@@ -297,12 +337,12 @@ class Game():
         with container:
             card = card_list_map[cc_type]
             card_html = f"{card[0]}{Card.suit_convert(card[0].suit)}"
-            st.markdown(f"<h1 style='text-align: center;'>{card_html}</h1>", unsafe_allow_html=True)
+            st.markdown(f"<h2 style='text-align: center;'>{card_html}</h2>", unsafe_allow_html=True)
     
     def update_table(self):
         for player in self.players_list:
             time.sleep(self.card_interval)
-            player.display()
+            player.reveal_hand()
     
     # create a dictionary using object
     def get_object_dictionary(self, object, stage = None):
@@ -347,7 +387,7 @@ class Game():
     def god_reveal_hands(self):
         for player in self.players_list:
             time.sleep(self.card_interval)
-            player.display()
+            player.status = "showdown"
     
     # god mode
     def god_reveal_cc(self):
@@ -391,6 +431,19 @@ class Deck:
         suits = ['S', 'H', 'C', 'D']
         values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
         self.cards = [Card(suit, value) for suit in suits for value in values]
+        self.card_back_html = f"""<div style='background-color: white; border: 1px solid black; padding: 2px; border-radius: 6px; display: inline-flex; justify-content: center; align-items: center; margin: 1px; font-size: 28px; text-align: center; width: 48px; height: 67px; position: relative;'>
+                                        <div style='background-color: #FF6961; width: 80%; height: 80%; display: flex; justify-content: center; align-items: center; border-radius: 4px;'>
+                                            <span style='color: white; font-size: 34px; display: block; transform: translateY(-10%);'>♠</span>
+                                        </div>
+                                    </div>"""
+
+    def table_emoji(self, emoji):
+        emoji_html = f"""<div style='border: 1px solid transparent; padding: 2px; border-radius: 6px; display: inline-flex; justify-content: center; align-items: center; margin: 1px; font-size: 28px; text-align: center; width: 48px; height: 67px; position: relative; background-color: rgba(255, 255, 255, 0);'>
+                        <div style='width: 80%; height: 80%; display: flex; justify-content: center; align-items: center; border-radius: 4px;'>
+                            <span style='color: black; font-size: 34px; display: block; transform: translateY(-10%);'>{emoji}</span>
+                        </div>
+                    </div>"""
+        return emoji_html
 
     def shuffle(self):
         random.shuffle(self.cards)
