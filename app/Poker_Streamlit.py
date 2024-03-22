@@ -18,6 +18,8 @@ from Poker import Game, Deck, Player
 from utils.lc import opponent_decision_langchain
 from pages.Dictionary import sim_game_data
 
+# run the app: streamlit run app/Poker_Streamlit.py
+
 # opponent decision wrapper function
 def decision_wrapper(player, poker_data):
     # check if the current recipe differs from the previous
@@ -104,7 +106,7 @@ if 'game' not in st.session_state:
 
 if st.session_state.reveal_all_hands:
     st.session_state.game.god_reveal_hands()
-    
+
 # ---------------------------------------------------------------- dynamic table ----------------------------------------------------------------
 
 display_table()
@@ -126,14 +128,10 @@ display_table()
 # st.session_state.game.display_cc("river", st.session_state.game.river_container) # river
 
 # langchain
-#for player in enumerate(st.session_state.game.players_list):
-#    decision_wrapper(player[1], sim_game_data)
+for player in enumerate(st.session_state.game.players_list):
+    decision_wrapper(player[1], sim_game_data)
 
 # ---------------------------------------------------------------- dynamic table ----------------------------------------------------------------
-
-
-
-
 
 # debug mode update
 if st.session_state.get('debug_mode', False):

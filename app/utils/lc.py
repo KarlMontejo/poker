@@ -1,41 +1,54 @@
+from enum import Enum
+from pydantic import BaseModel, Field
 from langchain.output_parsers.openai_tools import PydanticToolsParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.pydantic_v1 import BaseModel, Field, validator
 from langchain_openai import ChatOpenAI
-from typing import List, Optional
 from dotenv import load_dotenv
+
 import os
 import streamlit as st 
-import json
+
+class ActionOptions(str, Enum):
+    fold = "fold"
+    check = "check"
+    call = "call"
+    bet = "bet"
+    raise_ = "raise"
+
+class StatusOptions(str, Enum):
+    active = "active"
+    eliminated = "eliminated"
+    showdown = "showdown"
+    bet = "bet"
+    raise_ = "raise"
+
+class Action(BaseModel):
+    action: ActionOptions = Field(description="The action of the player (you) whether it be to fold, bet, check, call, or raise")
+    bet: float = Field(default=0.0, description="The amount of money out of the player's (your) current stack")
+    status: StatusOptions = Field(description="The status of the player (you) as in whether or not they are in the hand (active) or not due to a fold action (eliminated) or in showdown (showdown) if all betting stages are over and players must reveal their cards")
+    action_time: float = Field(default=0.0, description="The amount of time the player (you) takes to decide (in this situation simulate deciding) on the action")
 
 def opponent_decision_langchain(poker_data):
-    # define the opponent as a structured object
-    class Opponent(BaseModel):
-        action: str = Field(description="The action of the player (you) whether it be to fold, bet, check, call, or raise")
-        bet: float = Field(description="The amount of money out of the player's (your) current stack")
-        status: str = Field(description="The status of the player (you) as in whether or not they are in the hand or not due to a fold action")
-        action_time: float = Field(description="The amount of time the player (you) takes to decide (in this situation simulate deciding) on the action")
-
     # load api key
     load_dotenv()
-    api_key = os.getenv('API_KEY')
 
     # model
-    model = ChatOpenAI(model="gpt-3.5-turbo-0125", temperature=0, openai_api_key=f'sk-{api_key}')
-    model = model.bind_tools([Opponent])
+    model = ChatOpenAI(model="gpt-3.5-turbo-0125", temperature=0)
+    model = model.bind_tools([Action])
 
     # define parser
-    parser = PydanticToolsParser(tools=[Opponent])
+    parser = PydanticToolsParser(tools=[Action])
 
     # prompt setup
     prompt = ChatPromptTemplate.from_messages([
         ("system",  """
-                        You are a level {poker_data} poker player 
+                        You are a level {opp_difficulty} poker player 
                     """),
         ("user",    """
                         Current Game Context:\n{poker_data}\n---\n 
-                        Use the information above to develop your decision for the current betting stage based on your hand and the community 
-                        cards currently present (if there are any). For each round take into account the play style of other players at the table 
+                        Use the information above to return information about an action such as the action itself, bet, status, and action time 
+                        for the current betting stage based on your hand and the community cards currently present (if there are any) defined within the game context provided.
+                        For each round take into account the play style of other players at the table 
                         including the user using the game context available which will hold information about each player's actions from previous rounds.
                         Understand that folding your hand is a reasonable move in cases where your odds of winning the pot are low, with or without 
                         consideration of the chance of bluffing out opponents. Keep in mind, you are trying to earn maximum value in your earnings through
@@ -51,7 +64,7 @@ def opponent_decision_langchain(poker_data):
     chain = prompt | model | parser
 
     # invoke using recipe data
-    result = chain.invoke(input={"poker_data": poker_data, "opp_difficulty": poker_data["current game data"]["opp_difficulty"]})
+    result = chain.invoke(input={"poker_data": poker_data, "opp_difficulty": poker_data["current player (you)"]["current game data"]["opp_difficulty"]})
 
     # access the parsed recipe data
     opponent_decision = result[0]
