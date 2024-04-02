@@ -1,0 +1,8 @@
+langchain
+langchain_openai
+ipykernel
+streamlit
+streamlit-aggrid
+streamlit-nested-layout
+python-dotenv
+flask
