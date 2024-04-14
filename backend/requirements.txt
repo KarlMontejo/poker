@@ -6,3 +6,6 @@ streamlit-aggrid
 streamlit-nested-layout
 python-dotenv
 flask
+redis
+flask-cors
+redis-server

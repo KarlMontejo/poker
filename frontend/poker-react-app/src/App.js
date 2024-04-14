@@ -1,45 +1,47 @@
-import React, { useState, useEffect } from 'react'; 
+import React, { useState } from 'react';
 import PokerGame from './components/PokerGame';
-
-import logo from './logo.svg';
 import './App.css';
 
+// run react app:
+// cd frontend/poker-react-app
+// npm start
+
 function App() {
-  // state to store the list of items
-  const [items, setItems] = useState([]);
+    const [numOpponents, setNumOpponents] = useState(9);
+    const [oppDifficulty, setOppDifficulty] = useState('Amateur');
+    const [gameStarted, setGameStarted] = useState(false);
 
-  // simulate fetching data from an API
-  useEffect(() => {
-    const fetchData = async () => {
-      // delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // simulated fetched data
-      const fetchedItems = [
-        { id: 1, name: 'Item 1' },
-        { id: 2, name: 'Item 2' },
-        { id: 3, name: 'Item 3' },
-      ];
-
-      setItems(fetchedItems);
+    const handleStartGame = () => {
+        setGameStarted(true);
     };
 
-    fetchData();
-  }, []); // empty array means this effect runs once after initial render
-
-  return (
-    <div className="App">
-      <header className="App-header">
-        <h1>Poker</h1>
-          <PokerGame />
-        <ul>
-          {items.map(item => (
-            <li key={item.id}>{item.name}</li>
-          ))}
-        </ul>
-      </header>
-    </div>
-  );
+    return (
+        <div className="App">
+            <header className="App-header">
+                <h1>Welcome to the Poker Game!</h1>
+                {!gameStarted && (
+                    <div>
+                        <label>
+                            Number of Opponents:
+                            <input type="range" min="1" max="9" value={numOpponents}
+                                onChange={(e) => setNumOpponents(e.target.value)} />
+                            {numOpponents}
+                        </label>
+                        <label>
+                            Difficulty:
+                            <select value={oppDifficulty} onChange={(e) => setOppDifficulty(e.target.value)}>
+                                <option value="Amateur">Amateur</option>
+                                <option value="Intermediate">Intermediate</option>
+                                <option value="Expert">Expert</option>
+                            </select>
+                        </label>
+                        <button onClick={handleStartGame}>Start Game</button>
+                    </div>
+                )}
+                {gameStarted && <PokerGame numOpponents={numOpponents} oppDifficulty={oppDifficulty} />}
+            </header>
+        </div>
+    );
 }
 
 export default App;

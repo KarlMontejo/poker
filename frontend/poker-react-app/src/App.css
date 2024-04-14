@@ -45,3 +45,25 @@ li {
     transform: rotate(360deg);
   }
 }
+
+.poker-table {
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+
+.players {
+  display: flex;
+  justify-content: center;
+  margin: 20px;
+}
+
+.player {
+  margin: 0 10px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.actions button {
+  margin-right: 5px;
+}
