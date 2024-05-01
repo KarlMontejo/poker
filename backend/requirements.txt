@@ -9,3 +9,5 @@ flask
 redis
 flask-cors
 redis-server
+# sudo apt install -y autoconf automake build-essential python3-dev libtool
+# sudo apt install pkg-config

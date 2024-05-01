@@ -24,7 +24,7 @@ function App() {
                         <label>
                             Number of Opponents:
                             <input type="range" min="1" max="9" value={numOpponents}
-                                onChange={(e) => setNumOpponents(e.target.value)} />
+                                onChange={(e) => setNumOpponents(parseInt(e.target.value, 10))} />
                             {numOpponents}
                         </label>
                         <label>
